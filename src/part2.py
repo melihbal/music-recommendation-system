@@ -25,7 +25,7 @@ def compute_Tu(ratings):
         five_star_rounds = df_u[df_u["rating"] == 5]["round_idx"]
 
         if len(five_star_rounds) > 0:
-            Tu.append(five_star_rounds.min())
+            Tu.append(five_star_rounds.min() + 1)
 
     return np.array(Tu)
 
@@ -47,100 +47,124 @@ def beta_geometric_pmf(t, alpha, beta):
     return beta_func(alpha + 1, beta + t - 1) / beta_func(alpha, beta)
 
 
-
-
 def main():
+    # 1. Load Data
+    try:
+        ratings = pd.read_csv("../data/user_ratings.csv")
+    except FileNotFoundError:
+        print("Error: user_ratings.csv not found in ../data/")
+        return
 
-    ratings = pd.read_csv("../data/ratings.csv")
-
-
+    # 2. Global Modeling (Tu and p_hat)
+    # Ensure your compute_Tu function has the '+ 1' fix!
     Tu = compute_Tu(ratings)
     p_hat = fit_geometric(Tu)
 
+    print(f"Global Statistics:")
+    print(f"- Analyzed {len(Tu)} users")
+    print(f"- Estimated Geometric p: {p_hat:.4f}\n")
 
-    print("- Calculate time-to-5★ for each user")
-    print(Tu)
-
-
-    # empirical probability = T = n, (how many users found 5* at nth count) / total user count
+    # 3. Build Model Comparison Table (Cumulative / CDF)
     unique, counts = np.unique(Tu, return_counts=True)
     empirical_pmf = counts / counts.sum()
 
-    print("Empirical distribution:")
-    for t, p in zip(unique, empirical_pmf):
-        print(f"T = {t}: {p:.3f}")
+    # Step A: Build PMF DataFrame first
+    pmf_df = pd.DataFrame({
+        "Empirical": empirical_pmf,
+        f"Geom(p={p_hat:.2f})": [geometric_pmf(t, p_hat) for t in unique]
+    }, index=unique)
 
-
-    print("- Fit geometric distribution")
-    print("Geometric model prediction:")
-    for t in unique:
-        print(f"T = {t}: {geometric_pmf(t, p_hat):.3f}")
-
-
-    # paramaters for a and b
+    # Step B: Add Beta-Geometric PMFs
     params = [
-    (1, 5),   # pickier users
-    (3, 5),   # a bit picky
-    (2, 2),   # balanced
-    (5, 1)    # users finding a favourite quickly
+        (1, 5),   # pickier
+        (3, 5),   # moderate
+        (2, 2),   # balanced
+        (5, 1)    # easy
     ]
 
-
-    print("- Fit Beta-geometric distribution")
-    print("Beta-Geometric model prediction:")
     for alpha, beta in params:
-        print(f"\nBeta-Geometric (α={alpha}, β={beta}):")
-        for t in unique:
-            print(f"T={t}: {beta_geometric_pmf(t, alpha, beta):.3f}")
+        col_name = f"BG({alpha},{beta})"
+        pmf_df[col_name] = [beta_geometric_pmf(t, alpha, beta) for t in unique]
+
+    # Step C: Convert PMF to Cumulative Distribution (CDF)
+    # This answers: "What % of users found a song BY round T?"
+    cdf_df = pmf_df.cumsum()
+    cdf_df.index.name = "T"
+
+    # Print Table
+    print("--- Cumulative Distribution ---")
+    pd.set_option('display.max_columns', None)
+    pd.set_option('display.width', 1000)
+    print(cdf_df.round(3))
+    print("\n")
 
 
+    # 4. Hypothesis Testing
+    print("-"*50)
+    print("HYPOTHESIS TESTING")
+    print("-"*50)
 
-    print("- Perform hypothesis testing between user groups")
-    #mergeing the tracks with ratings to correctly group them
-    ratings = pd.read_csv("../data/ratings.csv")
-    tracks = pd.read_csv("../data/tracks.csv")
+    try:
+        tracks = pd.read_csv("../data/tracks.csv")
+    except FileNotFoundError:
+        print("Error: tracks.csv not found.")
+        return
+
+    # Merge to get metadata for every rating
     df = ratings.merge(tracks, left_on="song_id", right_on="track_id")
 
+    # Find the FIRST 5-star rating for each user
     first_fives = (
-    df[df["rating"] == 5]
-    .sort_values("round_idx")
-    .groupby("user_id")
-    .first()
-    .reset_index()
+        df[df["rating"] == 5]
+        .sort_values("round_idx")
+        .groupby("user_id")
+        .first()
+        .reset_index()
     )
 
-    # hypothesis test due to album release year
-    group_old = first_fives[first_fives["album_release_year"] < 2000]
-    group_new = first_fives[first_fives["album_release_year"] >= 2000]
+    # CRITICAL: Create 1-based 'Tu' for testing
+    first_fives["Tu"] = first_fives["round_idx"] + 1
 
-    Tu_old = group_old["round_idx"].values
-    Tu_new = group_new["round_idx"].values
+    # --- Test 1: Album Release Year (<2000 vs >=2000) ---
+    group_old = first_fives[first_fives["album_release_year"] < 2000]["Tu"]
+    group_new = first_fives[first_fives["album_release_year"] >= 2000]["Tu"]
 
-    print("users who likes songs released before year 2000", Tu_old)
-    print("users who likes songs released after year 2000",Tu_new)
+    stat1, p1 = stats.mannwhitneyu(group_old, group_new, alternative="two-sided")
+    print(f"\n[Test 1] Release Year (<2000 vs >=2000)")
+    print(f"  Mean Wait (Old): {group_old.mean():.2f}")
+    print(f"  Mean Wait (New): {group_new.mean():.2f}")
+    print(f"  p-value: {p1:.4f} ({'Significant' if p1 < 0.05 else 'Not Significant'})")
 
-    stat, p_value1 = stats.mannwhitneyu(Tu_old, Tu_new, alternative="two-sided")
-    print("p-value by release year:", p_value1)
+    # --- Test 2: Popularity (<80 vs >=80) ---
+    group_niche = first_fives[first_fives["track_popularity"] < 80]["Tu"]
+    group_pop = first_fives[first_fives["track_popularity"] >= 80]["Tu"]
 
-    print("Mean T (old):", Tu_old.mean())
-    print("Mean T (new):", Tu_new.mean())
+    stat2, p2 = stats.mannwhitneyu(group_niche, group_pop, alternative="two-sided")
+    print(f"\n[Test 2] Popularity (<80 vs >=80)")
+    print(f"  Mean Wait (Niche): {group_niche.mean():.2f}")
+    print(f"  Mean Wait (Pop):   {group_pop.mean():.2f}")
+    print(f"  p-value: {p2:.4f} ({'Significant' if p2 < 0.05 else 'Not Significant'})")
 
-    # hypothesis test due to popularity
-    group_notpopular= first_fives[first_fives["track_popularity"] < 80]
-    group_popular = first_fives[first_fives["track_popularity"] >= 80]
+    # --- Test 3: Mood (Party vs Not Party) ---
+    group_party = first_fives[first_fives["ab_mood_party_value"] == "party"]["Tu"]
+    group_chill = first_fives[first_fives["ab_mood_party_value"] == "not_party"]["Tu"]
 
-    Tu_notpopular = group_notpopular["round_idx"].values
-    Tu_popular= group_popular["round_idx"].values
+    stat3, p3 = stats.mannwhitneyu(group_party, group_chill, alternative="two-sided")
+    print(f"\n[Test 3] Mood (Party vs Not Party)")
+    print(f"  Mean Wait (Party): {group_party.mean():.2f}")
+    print(f"  Mean Wait (Chill): {group_chill.mean():.2f}")
+    print(f"  p-value: {p3:.4f} ({'Significant' if p3 < 0.05 else 'Not Significant'})")
 
-    print("users who likes songs that are not popular", Tu_notpopular)
-    print("users who likes songs that are popular",Tu_popular)
+    # --- Test 4: Duration (Split by Median) ---
+    median_duration = first_fives["duration_ms"].median()
+    group_long = first_fives[first_fives["duration_ms"] >= median_duration]["Tu"]
+    group_short = first_fives[first_fives["duration_ms"] < median_duration]["Tu"]
 
-    stat, p_value2 = stats.mannwhitneyu(Tu_notpopular, Tu_popular, alternative="two-sided")
-    print("p-value by popularity:", p_value2)
-
-    print("Mean T not popular:", Tu_notpopular.mean())
-    print("Mean T popular:", Tu_popular.mean())
-
+    stat4, p4 = stats.mannwhitneyu(group_long, group_short, alternative="two-sided")
+    print(f"\n[Test 4] Duration (Long vs Short, median={median_duration/1000:.1f}s)")
+    print(f"  Mean Wait (Long):  {group_long.mean():.2f}")
+    print(f"  Mean Wait (Short): {group_short.mean():.2f}")
+    print(f"  p-value: {p4:.4f} ({'Significant' if p4 < 0.05 else 'Not Significant'})")
 
 
 if __name__ == "__main__":
