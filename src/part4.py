@@ -1,3 +1,4 @@
+
 # Part 4: Monte Carlo Evaluation
 
 """
@@ -5,6 +6,7 @@ Part 4: Monte Carlo Evaluation
 
 Evaluate recommendation models using statistical simulation and Monte Carlo methods.
 """
+import time
 
 import pandas as pd
 import numpy as np
@@ -50,9 +52,11 @@ def build_user_histories(df, history_len=10):
             .itertuples(index=False, name=None)
         )
 
-        future_5star_ids = set(
-            u_df.iloc[history_len:][u_df['rating'] == 5]['song_id']
-        )
+        # Create a slice for the future part of the dataframe
+        future_df = u_df.iloc[history_len:]
+
+        # Filter that slice for 5-star ratings
+        future_5star_ids = set(future_df[future_df['rating'] == 5]['song_id'])
 
         if future_5star_ids:
             user_histories.append((history, future_5star_ids))
@@ -144,35 +148,40 @@ def compute_Tu(recommender_fn, df, history_len=10, k=10, max_rounds=20):
 
 if __name__ == "__main__":
 
-    # Read ratings
-    df = pd.read_csv('../data/user_ratings.csv')
+    rounds = 20
 
-    # Build evaluation data
-    user_histories = build_user_histories(df, history_len=5)
+    for i in range(rounds):
+        # Read ratings
+        df = pd.read_csv('../data/user_ratings.csv')
 
-    k = 10
-    np.random.seed(42)  # for reproducibility
+        # Build evaluation data
+        user_histories = build_user_histories(df, history_len=5)
 
-    hit_safe = hit_at_k(recommend_safe,user_histories, k)
-    hit_prob = hit_at_k(recommend_probabilistic,user_histories,k)
-
-    avg_rate_safe= average_rating_at_k(recommend_safe, df, history_len=10, k=10)
-    avg_rate_prob= average_rating_at_k(recommend_probabilistic, df, history_len=10, k=10)
-
-    Tu_safe= compute_Tu(recommend_safe, df, history_len=10, k=10,max_rounds=20)
-    Tu_prob= compute_Tu(recommend_probabilistic, df, history_len=10, k=10,max_rounds=20)
+        k = 10
+        random_seed = int(time.time())
+        np.random.seed(random_seed)  # for reproducibility
 
 
-    print(f"Hit@{k} (Popularity-Biased / Safe): {hit_safe:.3f}")
-    print(f"Hit@{k} (Utility-Based / Probabilistic): {hit_prob:.3f}")
+        hit_safe = hit_at_k(recommend_safe,user_histories, k)
+        hit_prob = hit_at_k(recommend_probabilistic,user_histories,k)
 
-    print(f"average (Popularity-Biased / Safe): {avg_rate_safe:.3f}")
-    print(f"average (Utility-Based / Probabilistic): {avg_rate_prob:.3f}")
+        avg_rate_safe= average_rating_at_k(recommend_safe, df, history_len=10, k=10)
+        avg_rate_prob= average_rating_at_k(recommend_probabilistic, df, history_len=10, k=10)
 
-    print(f"Mean Tu (Popularity-Biased / Safe): {Tu_safe.mean():.3f}")
-    print(f"Median Tu (Popularity-Biased / Safe): {np.median(Tu_safe):.3f}")
-    print(f"Mean Tu (Utility-Based / Probabilistic): {Tu_prob.mean():.3f}")
-    print(f"Median Tu (Utility-Based / Probabilistic): {np.median(Tu_prob):.3f}")
+        Tu_safe= compute_Tu(recommend_safe, df, history_len=10, k=10,max_rounds=20)
+        Tu_prob= compute_Tu(recommend_probabilistic, df, history_len=10, k=10,max_rounds=20)
+
+
+        print(f"Hit@{k} (Popularity-Biased / Safe): {hit_safe:.3f}")
+        print(f"Hit@{k} (Utility-Based / Probabilistic): {hit_prob:.3f}")
+
+        print(f"average (Popularity-Biased / Safe): {avg_rate_safe:.3f}")
+        print(f"average (Utility-Based / Probabilistic): {avg_rate_prob:.3f}")
+
+        print(f"Mean Tu (Popularity-Biased / Safe): {Tu_safe.mean():.3f}")
+        print(f"Median Tu (Popularity-Biased / Safe): {np.median(Tu_safe):.3f}")
+        print(f"Mean Tu (Utility-Based / Probabilistic): {Tu_prob.mean():.3f}")
+        print(f"Median Tu (Utility-Based / Probabilistic): {np.median(Tu_prob):.3f}")
 
 
 
