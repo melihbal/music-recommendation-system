@@ -109,13 +109,13 @@ def recommend_probabilistic(user_history, topk=5):
     # ---------------------------------------------------------
     # DEBUG SECTION: PRINT & SAVE PROBABILITIES
     # ---------------------------------------------------------
-    print("\n--- Top 10 Songs by Calculated Probability ---")
-    debug_view = candidates[['track_name', 'track_popularity', 'utility', 'prob']]
-    print(debug_view.sort_values('prob', ascending=False).head(10).to_string(index=False))
+    #print("\n--- Top 10 Songs by Calculated Probability ---")
+    #debug_view = candidates[['track_name', 'track_popularity', 'utility', 'prob']]
+    #print(debug_view.sort_values('prob', ascending=False).head(10).to_string(index=False))
 
     # Optional: Save all probabilities to a CSV to inspect in Excel
-    debug_view.sort_values('prob', ascending=False).to_csv("probability_debug.csv", index=False)
-    print("\n(Full probability list saved to 'probability_debug.csv')")
+    #debug_view.sort_values('prob', ascending=False).to_csv("probability_debug.csv", index=False)
+    #print("\n(Full probability list saved to 'probability_debug.csv')")
     # ---------------------------------------------------------
 
 
