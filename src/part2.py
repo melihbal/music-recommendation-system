@@ -65,26 +65,30 @@ def main():
     print(f"- Estimated Geometric p: {p_hat:.4f}\n")
 
     # 3. Build Model Comparison Table (Cumulative / CDF)
-    unique, counts = np.unique(Tu, return_counts=True)
-    empirical_pmf = counts / counts.sum()
+    max_T = Tu.max()
+    all_t = np.arange(1, max_T + 1)
 
-    # Step A: Build PMF DataFrame first
-    pmf_df = pd.DataFrame({
-        "Empirical": empirical_pmf,
-        f"Geom(p={p_hat:.2f})": [geometric_pmf(t, p_hat) for t in unique]
-    }, index=unique)
+    # Calculate Empirical PMF and reindex to full range (filling gaps with 0)
+    unique, counts = np.unique(Tu, return_counts=True)
+    empirical_series = pd.Series(counts / counts.sum(), index=unique)
+    empirical_series = empirical_series.reindex(all_t, fill_value=0)
+
+    # Step A: Build PMF DataFrame on the FULL range 'all_t'
+    pmf_df = pd.DataFrame(index=all_t)
+    pmf_df["Empirical"] = empirical_series
+    pmf_df[f"Geom(p={p_hat:.2f})"] = [geometric_pmf(t, p_hat) for t in all_t]
 
     # Step B: Add Beta-Geometric PMFs
     params = [
-        (1, 5),   # pickier
-        (3, 5),   # moderate
-        (2, 2),   # balanced
-        (5, 1)    # easy
+        (1, 5),  # pickier
+        (3, 5),  # moderate
+        (2, 2),  # balanced
+        (5, 1)  # easy
     ]
 
     for alpha, beta in params:
         col_name = f"BG({alpha},{beta})"
-        pmf_df[col_name] = [beta_geometric_pmf(t, alpha, beta) for t in unique]
+        pmf_df[col_name] = [beta_geometric_pmf(t, alpha, beta) for t in all_t]
 
     # Step C: Convert PMF to Cumulative Distribution (CDF)
     # This answers: "What % of users found a song BY round T?"
