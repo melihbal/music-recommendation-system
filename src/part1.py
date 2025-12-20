@@ -10,6 +10,7 @@ import pandas as pd
 import numpy as np
 
 
+# DATA LOAD FUNCTIONS
 
 def load_global_data():
     tracks = pd.read_csv("../data/tracks.csv")
@@ -19,13 +20,11 @@ def load_global_data():
     df = ratings.merge(tracks, left_on="song_id", right_on="track_id")
     return df
 
-
 def load_gulces_personal_data():
     tracks = pd.read_csv("../data/tracks.csv")
     gulce_ratings = pd.read_csv("../data/gulce_ratings.csv")
     df = gulce_ratings.merge(tracks, left_on="song_id", right_on="track_id")
     return df
-
 
 def load_melihs_personal_data():
     tracks = pd.read_csv("../data/tracks.csv")
@@ -34,9 +33,10 @@ def load_melihs_personal_data():
     return df
 
 
+
 #CONDITIONAL PROBABILITIES
 
-# Computes P(5★ | feature = value) with Laplace smoothing
+# Computes P(5★ | feature = value) with Laplace smoothing a=1 b=2
 def p_5_given(df, feature, value, alpha=1):
 
     #this subset just takes the rows with given feature
@@ -71,6 +71,7 @@ def p_5_given_two(df, feature1, value1, feature2, value2, alpha=1):
 
 
 #BAYES THEOREM
+
 # Computes P(feature=value | 5★) using Bayes' rule
 def bayes(df, feature, value):
 
@@ -89,7 +90,8 @@ def bayes(df, feature, value):
 
 
 
-#TOP FEATURES DUE TO 5 STAR RATINGS
+# TOP FEATURES DUE TO 5 STAR RATINGS
+
 # Computes P(5★ | feature=value) for all values of a feature and returns top_n values with enough data (min_count).
 def top_p5_by_feature(df, feature, min_count, top_n=10):
     
@@ -109,6 +111,8 @@ def top_p5_by_feature(df, feature, min_count, top_n=10):
         .sort_values("P(5★)", ascending=False)
         .head(top_n)
     )
+
+
 
 
 
@@ -156,20 +160,24 @@ if __name__ == "__main__":
 
     # some conditional probabilities with two features
 
-
+    # conditional prob with one feature to see the effect of two features
+    # Ed Sheeran vs pop & Ed Sheeran
     print("P(5★ | Artist = Ed Sheeran):",
           p_5_given(global_df, "primary_artist_name", "Ed Sheeran"))
     print("P(5★ | Artist = Ed Sheeran & genre = pop):",
           p_5_given_two(global_df,"primary_artist_name","Ed Sheeran","ab_genre_rosamerica_value", "pop"))
     
+    # pop vs pop & danceable
     print("P(5★ | genre = pop):",
           p_5_given(global_df, "ab_genre_rosamerica_value", "pop"))
     print("P(5★ | danceability: danceable & genre = pop):",
           p_5_given_two(global_df,"ab_danceability_value","danceable","ab_genre_rosamerica_value", "pop"))
     
+    # happy & bright
     print("P(5★ | happy & bright):",
       p_5_given_two(global_df, "ab_mood_happy_value", "happy","ab_timbre_value", "bright"))
     
+    # relaxed & acoustic
     print("P(5★ | relaxed & acoustic):",
           p_5_given_two(global_df,"ab_mood_relaxed_value", "relaxed","ab_mood_acoustic_value", "acoustic"))
     
@@ -206,8 +214,8 @@ if __name__ == "__main__":
     print("\n Melih's Top Release Years by P(5★):")
     print(top_p5_by_feature(melih_df, "album_release_year", min_count=2))
 
-    print("\nMelih's Top Artists by P(5★):")
-    print(top_p5_by_feature(melih_df, "primary_artist_name", min_count=1))
+    print("\nMelih's  Top Genres:")
+    print(top_p5_by_feature(melih_df, "ab_genre_rosamerica_value", min_count=2))
 
 
     # GROUP PROB = total prob / 2 for the same feature
@@ -221,8 +229,8 @@ if __name__ == "__main__":
 
 
 
-
     # MOST INFLUENTIAL AFFECTS ON RATINGS
+    # finds the most influential ones by best p5 -global 5
     global_p5 = (global_df["rating"] == 5).mean()
     print("Global P(5★):", global_p5)
     
