@@ -113,9 +113,6 @@ def top_p5_by_feature(df, feature, min_count, top_n=10):
     )
 
 
-
-
-
 if __name__ == "__main__":
 
 
