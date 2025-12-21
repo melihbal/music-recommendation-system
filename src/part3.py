@@ -7,12 +7,10 @@ Design and implement two different recommendation algorithms for the music syste
 """
 
 import pandas as pd
-import numpy as np
-import random
 
 print("Initializing Recommender...")
 
-# --- 1. CONFIGURATION & CONSTANTS ---
+# Constants
 MEDIAN_DURATION_MS = 233712  # From Part 2 Findings
 ALPHA = 1  # Laplace smoothing factor
 
@@ -25,9 +23,9 @@ try:
     df_merged = RATINGS.merge(TRACKS, left_on="song_id", right_on="track_id")
 
 
-    # --- 2. PRE-COMPUTE PROBABILITIES (Logic from Part 1) ---
-    # We compute P(5* | Feature) for every artist and genre globally
+    # Precompute probabilities -- Part 1
 
+    # P(5-star | Feature) for every artist and genre
     def compute_conditional_prob(df, feature_col):
         # Group by feature
         groups = df.groupby(feature_col)['rating']
@@ -36,8 +34,7 @@ try:
         counts = groups.count()
         five_star_counts = groups.apply(lambda x: (x == 5).sum())
 
-        # Apply Laplace Smoothing: (5s + alpha) / (total + 2*alpha)
-        # This prevents 0 probability for new/rare items
+        # Laplace smoothing
         probs = (five_star_counts + ALPHA) / (counts + 2 * ALPHA)
         return probs.to_dict()
 
@@ -46,10 +43,10 @@ try:
     ARTIST_PROBS = compute_conditional_prob(df_merged, 'primary_artist_name')
     GENRE_PROBS = compute_conditional_prob(df_merged, 'ab_genre_rosamerica_value')
 
-    # Calculate Global Average P(5*) for fallback
+    # Global Average P(5-star) for fallback
     GLOBAL_P5 = (len(df_merged[df_merged['rating'] == 5]) + ALPHA) / (len(df_merged) + 2 * ALPHA)
 
-    # Pre-map track popularity for speed
+    # Map track popularity for speed
     TRACK_SCORES = TRACKS.set_index('track_id')['track_popularity'].to_dict()
 
 except FileNotFoundError:
@@ -61,6 +58,7 @@ except FileNotFoundError:
 
 # user history: List[Tuple[str, str, int]]
 #                   (track_id, track_name, rating)
+# Recommends safe songs deterministically
 def recommend_safe(user_history, topk=5):
     liked_ids = set()
     seen_ids = set()
@@ -99,39 +97,33 @@ def recommend_global_hits(seen_ids, topk):
 
 
 def recommend_probabilistic(user_history, topk=5):
-    """
-    Model 2: Utility-Based Sampling
-    Utility is proportional to the probability of a 5* rating: P(5* | Artist, Genre)
-    """
     seen_ids = {x[0] for x in user_history}
 
     # Filter candidates
     candidates = TRACKS[~TRACKS['track_id'].isin(seen_ids)].copy()
 
-    # --- INTEGRATION OF PART 1 (Conditional Probabilities) ---
+    # Integration of Part 1
 
-    # 1. Map Global Probabilities
-    # If an artist is missing (new data), fallback to Global P(5*)
+    # Map Global Probabilities
+    # If an artist is missing , fallback to global P(5-star)
     candidates['p_artist'] = candidates['primary_artist_name'].map(ARTIST_PROBS).fillna(GLOBAL_P5)
     candidates['p_genre'] = candidates['ab_genre_rosamerica_value'].map(GENRE_PROBS).fillna(GLOBAL_P5)
 
-    # 2. Base Utility = Combination of probabilities
-    # We can multiply them (Naive Bayes assumption) or average them.
-    # Averaging is often more stable for recommenders.
+    # Base Utility = Combination of probabilities
     candidates['utility'] = (candidates['p_artist'] + candidates['p_genre']) / 2
 
-    # 3. Personalize (Conditional Filtering from Part 3 specs)
+    # Get the liked ids
     liked_ids = {x[0] for x in user_history if x[2] >= 4}
 
     if liked_ids:
         liked_meta = TRACKS[TRACKS['track_id'].isin(liked_ids)]
         liked_artists = set(liked_meta['primary_artist_name'].unique())
 
-        # BOOST: Instead of arbitrary *3.0, we double the utility
-        # for artists the user has explicitly validated.
+        # for artists the user has validated.
         candidates.loc[candidates['primary_artist_name'].isin(liked_artists), 'utility'] *= 2.0
 
-        # --- INTEGRATION OF PART 2 (User Variability/Patience) ---
+        # Integration of Part 2
+
         user_avg_dur = liked_meta['duration_ms'].mean()
 
         if user_avg_dur < MEDIAN_DURATION_MS:
@@ -143,7 +135,7 @@ def recommend_probabilistic(user_history, topk=5):
 
 
 
-            # CONDITIONAL BOOST: Only boost party songs if the user actually LIKES party songs.
+        # Only boost party songs if the user likes party songs.
         if 'ab_mood_party_value' in liked_meta.columns:
             # Check if user has liked any song labeled as 'party'
             user_likes_party = 'party' in liked_meta['ab_mood_party_value'].values
@@ -154,13 +146,11 @@ def recommend_probabilistic(user_history, topk=5):
                     candidates.loc[candidates['ab_mood_party_value'] == 'party', 'utility'] *= 1.1
 
 
-    # 4. Convert Utility to Sampling Probability
-    # Softmax or simple normalization to ensure sum = 1
-    # Adding a small exponent makes the peaks sharper (picks 'best' songs more often)
+    # Adding an exponent makes the peaks sharper
     candidates['sampling_weight'] = candidates['utility'] ** 3
     candidates['prob'] = candidates['sampling_weight'] / candidates['sampling_weight'].sum()
 
-    # Weighted random choice (Exploration vs Exploitation)
+    # Weighted random choice
     recs = candidates.sample(n=topk, weights='prob')
     return list(zip(recs['track_id'], recs['track_name']))
 
@@ -183,11 +173,11 @@ def query(song_ratings, topk):
         return recommend_probabilistic(song_ratings, topk)
 
 if __name__ == "__main__":
-    # 1. Read the CSV file
+    # Read the CSV file
     df = pd.read_csv('../data/melih_ratings.csv')
-    # 2. Sort by 'round_idx' to ensure the history is in the correct chronological order
+    # Sort by 'round_idx'
     df_sorted = df.sort_values('round_idx')
-    # 3. Create the list of tuples: (song_id, track_name, rating)
+    #Create the list of tuples: (song_id, track_name, rating)
     history = list(df_sorted[['song_id', 'track_name', 'rating']].itertuples(index=False, name=None))
 
     print("\n--- Model 1: Safe Recommender ---")

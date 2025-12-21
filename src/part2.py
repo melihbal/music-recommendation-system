@@ -253,7 +253,6 @@ def main():
     print(f"  p-value: {p4:.4f} {'Significant' if p4 < 0.05 else 'Insignificant'}")
 
     # --- Test 4: Popularity Extremes (Bottom 25% vs Top 25%) ---
-    # Finding: Extremely popular songs found much faster (p ~ 0.044)
     pop_low = merged['track_popularity'].quantile(0.25)
     pop_high = merged['track_popularity'].quantile(0.75)
 
