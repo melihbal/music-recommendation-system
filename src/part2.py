@@ -261,7 +261,7 @@ def main():
     group_top25 = merged[merged["track_popularity"] >= pop_high]['Tu'].values
 
     u4, p4 = mann_whitney_u_test(group_bottom25, group_top25)
-    print(f"\n[Test 4] Popularity Extremes (Bottom 25% vs Top 25%)")
+    print(f"\n[Test 5] Popularity Extremes (Bottom 25% vs Top 25%)")
     print(f"  Mean Wait (Bottom 25%): {np.mean(group_bottom25):.2f} (n={len(group_bottom25)})")
     print(f"  Mean Wait (Top 25%):    {np.mean(group_top25):.2f} (n={len(group_top25)})")
     print(f"  p-value: {p4:.4f} {'Significant' if p4 < 0.05 else 'Insignificant'}")
