@@ -141,9 +141,17 @@ def recommend_probabilistic(user_history, topk=5):
             # Patient users -> Slight boost to longer songs
             candidates.loc[candidates['duration_ms'] >= MEDIAN_DURATION_MS, 'utility'] *= 1.1
 
-        # We found 'party' mood to be statistically significant for user patience in Part 2.
-        if 'ab_mood_party_value' in candidates.columns:
-            candidates.loc[candidates['ab_mood_party_value'] == 'party', 'utility'] *= 1.1
+
+
+            # CONDITIONAL BOOST: Only boost party songs if the user actually LIKES party songs.
+        if 'ab_mood_party_value' in liked_meta.columns:
+            # Check if user has liked any song labeled as 'party'
+            user_likes_party = 'party' in liked_meta['ab_mood_party_value'].values
+
+            # Apply boost only if they are a "party song lover"
+            if user_likes_party:
+                if 'ab_mood_party_value' in candidates.columns:
+                    candidates.loc[candidates['ab_mood_party_value'] == 'party', 'utility'] *= 1.1
 
 
     # 4. Convert Utility to Sampling Probability
