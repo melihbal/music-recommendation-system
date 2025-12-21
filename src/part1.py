@@ -13,22 +13,22 @@ import numpy as np
 # DATA LOAD FUNCTIONS
 
 def load_global_data():
-    tracks = pd.read_csv("../data/tracks.csv")
-    ratings = pd.read_csv("../data/user_ratings.csv")
+    tracks = pd.read_csv("data/tracks.csv")
+    ratings = pd.read_csv("data/user_ratings.csv")
 
     # merge the tracks and ratings file based on tracj_id = song_id, to see everything on the same file
     df = ratings.merge(tracks, left_on="song_id", right_on="track_id")
     return df
 
 def load_gulces_personal_data():
-    tracks = pd.read_csv("../data/tracks.csv")
-    gulce_ratings = pd.read_csv("../data/gulce_ratings.csv")
+    tracks = pd.read_csv("data/tracks.csv")
+    gulce_ratings = pd.read_csv("data/gulce_ratings.csv")
     df = gulce_ratings.merge(tracks, left_on="song_id", right_on="track_id")
     return df
 
 def load_melihs_personal_data():
-    tracks = pd.read_csv("../data/tracks.csv")
-    melih_ratings = pd.read_csv("../data/melih_ratings.csv")
+    tracks = pd.read_csv("data/tracks.csv")
+    melih_ratings = pd.read_csv("data/melih_ratings.csv")
     df = melih_ratings.merge(tracks, left_on="song_id", right_on="track_id")
     return df
 

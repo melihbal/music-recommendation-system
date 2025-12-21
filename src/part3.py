@@ -16,8 +16,8 @@ ALPHA = 1  # Laplace smoothing factor
 
 try:
     # Load Data
-    TRACKS = pd.read_csv("../data/tracks.csv")
-    RATINGS = pd.read_csv("../data/user_ratings.csv")  # Required for Part 1 stats
+    TRACKS = pd.read_csv("data/tracks.csv")
+    RATINGS = pd.read_csv("data/user_ratings.csv")  # Required for Part 1 stats
 
     # Merge to link ratings to artists/genres
     df_merged = RATINGS.merge(TRACKS, left_on="song_id", right_on="track_id")
@@ -174,7 +174,7 @@ def query(song_ratings, topk):
 
 if __name__ == "__main__":
     # Read the CSV file
-    df = pd.read_csv('../data/melih_ratings.csv')
+    df = pd.read_csv('data/melih_ratings.csv')
     # Sort by 'round_idx'
     df_sorted = df.sort_values('round_idx')
     #Create the list of tuples: (song_id, track_name, rating)

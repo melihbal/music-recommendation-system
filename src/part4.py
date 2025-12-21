@@ -184,7 +184,7 @@ def mean_ci(diff):
 if __name__ == "__main__":
 
     # Read ratings
-    df = pd.read_csv('../data/user_ratings.csv')
+    df = pd.read_csv('data/user_ratings.csv')
 
     # Initialize lists to store metrics for each Monte Carlo trial
     hit_safe_list = []

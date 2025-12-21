@@ -134,7 +134,7 @@ def main():
 
     # Load Ratings
     try:
-        ratings = pd.read_csv("../data/user_ratings.csv")
+        ratings = pd.read_csv("data/user_ratings.csv")
     except FileNotFoundError:
         try:
             # Fallback for local testing
@@ -190,7 +190,7 @@ def main():
     print("=" * 40)
 
     try:
-        tracks = pd.read_csv("../data/tracks.csv")
+        tracks = pd.read_csv("/data/tracks.csv")
     except FileNotFoundError:
         try:
             tracks = pd.read_csv("data/tracks.csv")
