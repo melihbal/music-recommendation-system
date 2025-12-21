@@ -247,23 +247,34 @@ if __name__ == "__main__":
     ("ab_genre_rosamerica_value"),
     ]
 
-    print("\nFeature Influence (Lift over Global):")
+    print("\nFeature Influence (Lift over Feature's Own Mean):")
+    print("-" * 90)
+    print(f"{'Feature':30s} | {'Be st Category':15s} | {'Category P(5★)':9s} | {'Feature Mean':9s} | {'Lift'}")
+    print("-" * 90)
 
     for f in features:
-        df_top = top_p5_by_feature(global_df, f, min_count=30)
+        # 1. Get stats for all categories in this feature
+        df_feature = top_p5_by_feature(global_df, f, min_count=30, top_n=100)
 
-        if df_top.empty:
+        if df_feature.empty:
             continue
 
-        best_value = df_top.iloc[0][f]
-        best_p5 = df_top.iloc[0]["P(5★)"]
-        count = df_top.iloc[0]["count"]
-        lift = best_p5 - global_p5
+        # 2. Calculate the weighted average P(5★) for this feature specifically
+        # We use (P * count) to get the true mean for that feature
+        feature_mean = (df_feature["P(5★)"] * df_feature["count"]).sum() / df_feature["count"].sum()
+
+        # 3. Get the best performing category
+        best_row = df_feature.iloc[0]
+        best_value = best_row[f]
+        best_p5 = best_row["P(5★)"]
+        
+        # 4. Calculate Lift relative to the feature's own average
+        relative_lift = best_p5 - feature_mean
+
         print(
             f"{f:30s} | "
-            f"best={str(best_value):12s} | "
-            f"P(5★)={best_p5:.3f} | "
-            f"Lift={lift:+.3f} | "
-            f"n={count}"
+            f"{str(best_value):15s} | "
+            f"{best_p5:.3f}     | "
+            f"{feature_mean:.3f}     | "
+            f"{relative_lift:+.3f}"
         )
-    
