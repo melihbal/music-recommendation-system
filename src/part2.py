@@ -181,7 +181,7 @@ def main():
         f"BetaGeo(a={alpha_hat:.1f},b={beta_hat:.1f})": bg_cdf
     })
 
-    print("\n--- Model Fit Comparison (Cumulative Probability) ---")
+    print("\n--- Model Comparison (Cumulative Probability) ---")
     print(df_cdf.set_index("Round (T)").round(3))
 
     # 4. Hypothesis testing
