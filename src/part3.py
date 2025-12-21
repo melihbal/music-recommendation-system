@@ -62,25 +62,33 @@ except FileNotFoundError:
 # user history: List[Tuple[str, str, int]]
 #                   (track_id, track_name, rating)
 def recommend_safe(user_history, topk=5):
-    """
-    Model 1: Deterministic / Popularity-Biased
-    Uses global popularity but filters/boosts based on P(5* | Genre)
-    """
-    seen_ids = {x[0] for x in user_history}
+    liked_ids = set()
+    seen_ids = set()
+
+    for track_id, _, rating in user_history:
+        if rating > 4:
+            liked_ids.add(track_id)
+    for x in user_history:
+        seen_ids.add(x[0])
+
+    # if no song is liked, return global favourites
+    if not liked_ids:
+        return recommend_global_hits(seen_ids, topk)
+
+    liked_meta = TRACKS[TRACKS['track_id'].isin(liked_ids)]
+    liked_artists = liked_meta['primary_artist_name'].unique()
+    liked_genres = liked_meta['ab_genre_rosamerica_value'].unique()
+
+    # Eliminate songs that are already seen
     candidates = TRACKS[~TRACKS['track_id'].isin(seen_ids)].copy()
 
-    # Start with normalized popularity (0-100 scale)
+    # Base score of the candidate is its popularity
     candidates['score'] = candidates['track_popularity']
 
-    # Add probabilistic signal from Part 1
-    # If a genre has a high global probability of being 5-stars, we boost the score.
-    # We scale the probability (0.0-1.0) to be comparable to popularity (0-100)
-    candidates['genre_boost'] = candidates['ab_genre_rosamerica_value'].map(GENRE_PROBS).fillna(GLOBAL_P5) * 40
-    candidates['score'] += candidates['genre_boost']
+    candidates.loc[candidates['primary_artist_name'].isin(liked_artists), 'score'] += 30
+    candidates.loc[candidates['ab_genre_rosamerica_value'].isin(liked_genres), 'score'] += 15
 
-    # Safe model: Deterministic sort
     recs = candidates.sort_values('score', ascending=False).head(topk)
-    #print(recs)
     return list(zip(recs['track_id'], recs['track_name']))
 
 # returns a list of tuples of (track_ids, track_name)
