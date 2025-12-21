@@ -190,9 +190,14 @@ if __name__ == "__main__":
     # 3. Create the list of tuples: (song_id, track_name, rating)
     history = list(df_sorted[['song_id', 'track_name', 'rating']].itertuples(index=False, name=None))
 
+    print("\n--- Model 1: Safe Recommender ---")
+    for r in recommend_safe(history, 5):
+        print(r)
 
-    print("\nTesting Query Function...")
-    results = query(history, 5)
-    print("Recommendations:")
-    for r in results:
+    print("\n--- Model 2: Probabilistic Recommender ---")
+    for r in recommend_probabilistic(history, 5):
+        print(r)
+
+    print("\n--- Automatic Query Decision ---")
+    for r in query(history, 5):
         print(r)
